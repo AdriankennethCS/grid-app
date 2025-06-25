@@ -173,21 +173,10 @@ if px_top <= px_bottom:
 if st.button("Calculate grid", type="primary"):
     df, raw_gap = build_grid(px_bottom, px_top, spot, levels, slice_val, leverage, price_dp)
 
-    zebra = pd.DataFrame(
-        [[f"background-color:{ROW_ODD if i % 2 else ROW_EVEN};" for _ in df.columns] for i in range(len(df))],
-        index=df.index, columns=df.columns)
+st.subheader("Grid Table – matches Excel row/qty/draw‑down")
+st.markdown(f"Gap: **{raw_gap:.{gap_dp}f}**  • Rows: {levels}  • Slice: {slice_val} USDT")
 
-    styled = (df.style
-              .apply(lambda _: zebra, axis=None)
-              .applymap(style_pos_neg, subset=["Unrealised", "PnL"])
-              .applymap(style_drawdown, subset=["Drawdown"]))
-
-    st.subheader("Grid Table – matches Excel row/qty/draw‑down")
-    st.markdown(f"Gap: **{raw_gap:.{gap_dp}f}**  • Rows: {levels}  • Slice: {slice_val} USDT")
-    st.dataframe(styled, use_container_width=True, hide_index=True)
-
-    st.download_button("Download CSV", df.to_csv(index=False).encode(), "grid_table.csv", "text/csv")
-
-    st.caption("Templates stored in 'grid_templates.json'. Pale‑red Draw‑down, red/green PnL.")
+# ✅ This ensures compatibility across all themes (light + dark)
+st.table(df)
 
 
