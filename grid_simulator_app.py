@@ -192,10 +192,6 @@ if px_top <= px_bottom:
 if st.button("Calculate grid", type="primary"):
     df, raw_gap = build_grid(px_bottom, px_top, spot, levels, slice_val, leverage, price_dp)
 
-st.subheader("Grid Table – matches Excel row/qty/draw‑down")
-st.markdown(f"Gap: **{raw_gap:.{gap_dp}f}**  • Rows: {levels}  • Slice: {slice_val} USDT")
-
-# ✅ This ensures compatibility across all themes (light + dark)
-st.table(df)
-
-
+    st.subheader("Grid Table – matches Excel row/qty/draw‑down")
+    st.markdown(f"Gap: **{raw_gap:.{gap_dp}f}**  • Rows: {levels}  • Slice: {slice_val} USDT")
+    st.table(df)
