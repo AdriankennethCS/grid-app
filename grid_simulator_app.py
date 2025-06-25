@@ -7,6 +7,25 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
+# Force light styling for visibility on dark mode browsers
+st.markdown("""
+    <style>
+    /* Make all table cells white background with black text */
+    table {
+        background-color: white !important;
+        color: black !important;
+    }
+    th, td {
+        background-color: white !important;
+        color: black !important;
+    }
+    .stDataFrame div {
+        background-color: white !important;
+        color: black !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 # ------------------------------------------------------------------
 # 🗄️  Template storage helpers
 # ------------------------------------------------------------------
