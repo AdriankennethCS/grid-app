@@ -1,5 +1,4 @@
 import json
-import math
 from pathlib import Path
 from textwrap import dedent
 
@@ -7,10 +6,9 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-# Force light styling for visibility on dark mode browsers
+# Force light styling regardless of dark browser themes
 st.markdown("""
     <style>
-    /* Make all table cells white background with black text */
     table {
         background-color: white !important;
         color: black !important;
@@ -22,12 +20,14 @@ st.markdown("""
     .stDataFrame div {
         background-color: white !important;
         color: black !important;
+        font-family: monospace;
+        text-align: right;
     }
     </style>
 """, unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# 🗄️  Template storage helpers
+# Template storage
 # ------------------------------------------------------------------
 TEMPLATE_PATH = Path(__file__).with_name("grid_templates.json")
 
@@ -39,39 +39,32 @@ def load_templates() -> dict:
             pass
     return {}
 
-
 def save_templates(tpls: dict):
     TEMPLATE_PATH.write_text(json.dumps(tpls, indent=2))
 
 # ------------------------------------------------------------------
-# Page configuration
+# Config
 # ------------------------------------------------------------------
 st.set_page_config(page_title="Crypto Grid‑Bot Calculator", page_icon="📈", layout="centered")
 
 # ------------------------------------------------------------------
-# CSS – hover highlight + responsive table wrapper
+# Table hover styling
 # ------------------------------------------------------------------
-st.markdown(
-    dedent(
-        """
-        <style>
-            .dataframe tbody tr:hover {background-color:#e8f0ff !important;}
-            .stDataFrame {overflow-x:auto;}
-        </style>
-        """
-    ),
-    unsafe_allow_html=True,
-)
+st.markdown(dedent("""
+    <style>
+        .dataframe tbody tr:hover {background-color:#e8f0ff !important;}
+        .stDataFrame {overflow-x:auto;}
+    </style>
+"""), unsafe_allow_html=True)
 
 # ------------------------------------------------------------------
-# Palette & style helpers
+# Color palette
 # ------------------------------------------------------------------
-POS_CLR = "#2a9d8f"  # teal‑green positive
-NEG_TXT = "#e63946"  # soft red text
-NEG_BG = "#ffecec"  # pale red backg
+POS_CLR = "#2a9d8f"   # Green
+NEG_TXT = "#e63946"   # Red text
+NEG_BG  = "#ffecec"   # Red background
 ROW_EVEN = "#ffffff"
 ROW_ODD = "#f7f7f7"
-
 
 def style_pos_neg(val: float) -> str:
     if val < 0:
@@ -80,12 +73,11 @@ def style_pos_neg(val: float) -> str:
         return f"color:{POS_CLR};"
     return ""
 
-
 def style_drawdown(val: float) -> str:
     return f"background-color:{NEG_BG}; color:{NEG_TXT};" if val < 0 else ""
 
 # ------------------------------------------------------------------
-# Core calc (cached)
+# Core calc
 # ------------------------------------------------------------------
 @st.cache_data(show_spinner=False)
 def build_grid(min_px: float, max_px: float, start_px: float, levels: int, usdt_slice: float,
@@ -95,7 +87,6 @@ def build_grid(min_px: float, max_px: float, start_px: float, levels: int, usdt_
     raw_prices = max_px - np.arange(levels) * raw_gap
     prices = np.round(raw_prices, price_dp)
 
-    # Coin sizing in blocks of 10, floor
     qty = np.floor_divide(usdt_slice / prices, 10) * 10
     qty = np.where(qty == 0, 10, qty)
     acc_qty = qty.cumsum()
@@ -152,10 +143,7 @@ with st.sidebar:
     tpl_names = list(tpls.keys())
     selected_tpl = st.selectbox("Load template", ["<None>"] + tpl_names)
 
-    if selected_tpl != "<None>":
-        kwargs = template_to_kwargs(tpls[selected_tpl])
-    else:
-        kwargs = {}
+    kwargs = template_to_kwargs(tpls[selected_tpl]) if selected_tpl != "<None>" else {}
 
     st.header("Parameters")
     px_top = st.number_input("Max price", value=kwargs.get("px_top", 7.0), min_value=0.0, format="%f")
@@ -169,7 +157,6 @@ with st.sidebar:
 
     st.caption("Exactly *Levels* rows (1…N). Qty blocks of 10 like the workbook.")
 
-    # --- Save template section
     new_tpl_name = st.text_input("Save current as template (name)")
     if st.button("Save template") and new_tpl_name:
         tpls[new_tpl_name] = {
@@ -192,6 +179,21 @@ if px_top <= px_bottom:
 if st.button("Calculate grid", type="primary"):
     df, raw_gap = build_grid(px_bottom, px_top, spot, levels, slice_val, leverage, price_dp)
 
+    zebra = pd.DataFrame(
+        [[f"background-color:{ROW_ODD if i % 2 else ROW_EVEN};" for _ in df.columns] for i in range(len(df))],
+        index=df.index, columns=df.columns)
+
+    styled = (df.style
+        .set_properties(**{'background-color': 'white', 'color': 'black', 'border-color': 'black'})
+        .apply(lambda _: zebra, axis=None)
+        .applymap(style_pos_neg, subset=["Unrealised", "PnL"])
+        .applymap(style_drawdown, subset=["Drawdown"])
+    )
+
     st.subheader("Grid Table – matches Excel row/qty/draw‑down")
     st.markdown(f"Gap: **{raw_gap:.{gap_dp}f}**  • Rows: {levels}  • Slice: {slice_val} USDT")
-    st.table(df)
+    st.dataframe(styled, use_container_width=True, hide_index=True)
+
+    st.download_button("Download CSV", df.to_csv(index=False).encode(), "grid_table.csv", "text/csv")
+    st.caption("Templates stored in 'grid_templates.json'. Pale‑red Draw‑down, red/green PnL.")
+
